@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   Carousel,
@@ -7,7 +7,6 @@ import {
   Nav,
   Navbar,
   Spinner,
-  Table,
 } from 'react-bootstrap'
 import './App.css'
 
@@ -21,6 +20,22 @@ type HeroSlide = {
   title: string
   subtitle: string
 }
+
+type SortKey = keyof UserRow
+type SortDirection = 'asc' | 'desc'
+
+type SortState = {
+  key: SortKey
+  direction: SortDirection
+}
+
+const PAGE_SIZE = 10
+const columns: Array<{ key: SortKey; label: string }> = [
+  { key: 'name', label: 'Name' },
+  { key: 'id', label: 'ID' },
+  { key: 'status', label: 'Status' },
+]
+const statuses: Array<UserRow['status']> = ['Active', 'Pending', 'Inactive']
 
 const USERS_API_URL = import.meta.env.VITE_USERS_API_URL ?? 'http://localhost:3000/users'
 
@@ -48,6 +63,55 @@ function App() {
   const [rows, setRows] = useState<UserRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [filters, setFilters] = useState<Record<SortKey, string>>({
+    name: '',
+    id: '',
+    status: 'All',
+  })
+  const [sort, setSort] = useState<SortState>({ key: 'name', direction: 'asc' })
+  const [currentPage, setCurrentPage] = useState(1)
+
+  const filteredRows = useMemo(() => {
+    const nameFilter = filters.name.trim().toLocaleLowerCase()
+    const idFilter = filters.id.trim().toLocaleLowerCase()
+
+    return rows
+      .filter((row) => {
+        const matchesName = row.name.toLocaleLowerCase().includes(nameFilter)
+        const matchesId = row.id.toLocaleLowerCase().includes(idFilter)
+        const matchesStatus = filters.status === 'All' || row.status === filters.status
+
+        return matchesName && matchesId && matchesStatus
+      })
+      .sort((left, right) => {
+        const leftValue = left[sort.key]
+        const rightValue = right[sort.key]
+        const comparison = leftValue.localeCompare(rightValue, undefined, {
+          numeric: true,
+          sensitivity: 'base',
+        })
+
+        return sort.direction === 'asc' ? comparison : -comparison
+      })
+  }, [filters, rows, sort])
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE))
+  const activePage = Math.min(currentPage, totalPages)
+  const visibleRows = filteredRows.slice((activePage - 1) * PAGE_SIZE, activePage * PAGE_SIZE)
+
+  const updateFilter = (key: SortKey, value: string) => {
+    setFilters((currentFilters) => ({ ...currentFilters, [key]: value }))
+    setCurrentPage(1)
+  }
+
+  const updateSort = (key: SortKey) => {
+    setSort((currentSort) => ({
+      key,
+      direction:
+        currentSort.key === key && currentSort.direction === 'asc' ? 'desc' : 'asc',
+    }))
+    setCurrentPage(1)
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -137,52 +201,142 @@ function App() {
 
         <section id="records" className="records-section" aria-label="Latest records">
           <Container fluid>
-            <div className="table-frame">
-              <Table responsive bordered hover className="records-table mb-0">
-                <thead>
-                  <tr>
-                    <th scope="col">Name</th>
-                    <th scope="col">ID</th>
-                    <th scope="col">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <div className="grid-frame">
+              <div className="grid-scroll">
+                <div className="records-grid" role="grid" aria-label="User records">
+                  <div className="records-grid__row records-grid__row--header" role="row">
+                    {columns.map((column) => (
+                      <div
+                        key={column.key}
+                        className="records-grid__cell records-grid__cell--header"
+                        role="columnheader"
+                        aria-sort={
+                          sort.key === column.key
+                            ? sort.direction === 'asc'
+                              ? 'ascending'
+                              : 'descending'
+                            : 'none'
+                        }
+                      >
+                        <button
+                          type="button"
+                          className="sort-button"
+                          onClick={() => updateSort(column.key)}
+                          aria-label={`Sort by ${column.label} ${
+                            sort.key === column.key && sort.direction === 'asc' ? 'descending' : 'ascending'
+                          }`}
+                        >
+                          <span>{column.label}</span>
+                          <span className="sort-indicator" aria-hidden="true">
+                            {sort.key === column.key ? (sort.direction === 'asc' ? 'Asc' : 'Desc') : 'Sort'}
+                          </span>
+                        </button>
+
+                        {column.key === 'status' ? (
+                          <select
+                            className="grid-filter"
+                            value={filters.status}
+                            onChange={(event) => updateFilter('status', event.target.value)}
+                            aria-label="Filter by status"
+                          >
+                            <option value="All">All statuses</option>
+                            {statuses.map((status) => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            className="grid-filter"
+                            type="search"
+                            value={filters[column.key]}
+                            onChange={(event) => updateFilter(column.key, event.target.value)}
+                            placeholder={`Filter ${column.label}`}
+                            aria-label={`Filter by ${column.label}`}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
                   {isLoading ? (
-                    <tr>
-                      <td colSpan={3} className="table-loading">
+                    <div className="records-grid__row records-grid__row--state" role="row">
+                      <div className="records-grid__cell grid-state" role="gridcell" aria-colspan={3}>
                         <Spinner animation="border" size="sm" role="status" aria-hidden="true" />
                         <span>Loading users...</span>
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   ) : error ? (
-                    <tr>
-                      <td colSpan={3}>
-                        <Alert variant="danger" className="table-alert mb-0">
+                    <div className="records-grid__row records-grid__row--state" role="row">
+                      <div className="records-grid__cell" role="gridcell" aria-colspan={3}>
+                        <Alert variant="danger" className="grid-alert mb-0">
                           Unable to load users: {error}
                         </Alert>
-                      </td>
-                    </tr>
-                  ) : rows.length > 0 ? (
-                    rows.map((row) => (
-                      <tr key={row.id}>
-                        <td>{row.name}</td>
-                        <td>{row.id}</td>
-                        <td>
+                      </div>
+                    </div>
+                  ) : visibleRows.length > 0 ? (
+                    visibleRows.map((row) => (
+                      <div className="records-grid__row" role="row" key={row.id}>
+                        <div className="records-grid__cell" role="gridcell">{row.name}</div>
+                        <div className="records-grid__cell" role="gridcell">{row.id}</div>
+                        <div className="records-grid__cell" role="gridcell">
                           <span className={`status-badge status-badge--${row.status.toLowerCase()}`}>
                             {row.status}
                           </span>
-                        </td>
-                      </tr>
+                        </div>
+                      </div>
                     ))
                   ) : (
-                    <tr>
-                      <td colSpan={3} className="empty-state">
-                        No records yet.
-                      </td>
-                    </tr>
+                    <div className="records-grid__row records-grid__row--state" role="row">
+                      <div className="records-grid__cell empty-state" role="gridcell" aria-colspan={3}>
+                        {rows.length > 0 ? 'No records match the current filters.' : 'No records yet.'}
+                      </div>
+                    </div>
                   )}
-                </tbody>
-              </Table>
+                </div>
+              </div>
+
+              {!isLoading && !error && (
+                <div className="grid-footer">
+                  <span className="grid-result-count" aria-live="polite">
+                    Showing {filteredRows.length === 0 ? 0 : (activePage - 1) * PAGE_SIZE + 1}
+                    {'-'}
+                    {Math.min(activePage * PAGE_SIZE, filteredRows.length)} of {filteredRows.length} records
+                  </span>
+                  <nav className="grid-pagination" aria-label="Records pagination">
+                    <button
+                      type="button"
+                      className="pagination-button pagination-button--arrow"
+                      onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                      disabled={activePage === 1}
+                      aria-label="Previous page"
+                    >
+                      {'<'}
+                    </button>
+                    {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                      <button
+                        type="button"
+                        className={`pagination-button${page === activePage ? ' pagination-button--active' : ''}`}
+                        onClick={() => setCurrentPage(page)}
+                        key={page}
+                        aria-current={page === activePage ? 'page' : undefined}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className="pagination-button pagination-button--arrow"
+                      onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                      disabled={activePage === totalPages}
+                      aria-label="Next page"
+                    >
+                      {'>'}
+                    </button>
+                  </nav>
+                </div>
+              )}
             </div>
           </Container>
         </section>

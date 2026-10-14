@@ -190,33 +190,131 @@
   padding-left: 0;
 }
 
-.table-frame {
-  overflow: hidden;
+.grid-frame {
   border: 1px solid var(--line);
   border-right: 0;
   border-left: 0;
+  background: var(--surface);
 }
 
-.records-table {
-  --bs-table-bg: var(--surface-soft);
-  --bs-table-border-color: var(--line);
-  --bs-table-hover-bg: #eaf7f7;
+.grid-scroll {
+  overflow-x: auto;
+}
+
+.records-grid {
+  min-width: 720px;
   color: var(--ink);
   font-size: 1rem;
 }
 
-.records-table thead th {
+.records-grid__row {
+  display: grid;
+  grid-template-columns: minmax(16rem, 1.6fr) minmax(13rem, 1fr) minmax(11rem, 0.85fr);
+  background: var(--surface-soft);
+}
+
+.records-grid__row:not(.records-grid__row--header):hover {
+  background: #eaf7f7;
+}
+
+.records-grid__cell {
+  min-width: 0;
   padding: 1rem 1.1rem;
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.records-grid__cell:last-child {
+  border-right: 0;
+}
+
+.records-grid__row:last-child .records-grid__cell {
+  border-bottom: 0;
+}
+
+.records-grid__row--header {
   color: #34424b;
   background: #eef3f5;
+}
+
+.records-grid__cell--header {
+  padding: 0.8rem 1.1rem 1rem;
+}
+
+.sort-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 0 0.55rem;
+  border: 0;
+  color: inherit;
+  background: transparent;
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.08em;
+  text-align: left;
+  text-transform: uppercase;
 }
 
-.records-table tbody td {
-  padding: 1rem 1.1rem;
-  vertical-align: middle;
+.sort-button:hover,
+.sort-button:focus-visible {
+  color: var(--accent-deep);
+}
+
+.sort-indicator {
+  margin-left: 0.6rem;
+  color: var(--accent-deep);
+  font-size: 0.65rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.grid-filter {
+  display: block;
+  width: 100%;
+  min-height: 2.25rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid #cbd8dd;
+  border-radius: 0.35rem;
+  color: var(--ink);
+  background: var(--surface);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.grid-filter:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 0.2rem rgb(0 154 166 / 15%);
+  outline: 0;
+}
+
+.records-grid__row--state {
+  background: var(--surface-soft);
+}
+
+.records-grid__row--state .records-grid__cell {
+  grid-column: 1 / -1;
+}
+
+.grid-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  min-height: 5rem;
+  grid-column: 1 / -1;
+  color: var(--muted-ink);
+}
+
+.grid-state .spinner-border {
+  color: var(--accent-deep);
+}
+
+.grid-alert {
+  border: 0;
+  border-radius: 0;
 }
 
 .status-badge {
@@ -248,24 +346,64 @@
   padding: 2.5rem 1rem !important;
   color: var(--muted-ink);
   text-align: center;
+  grid-column: 1 / -1;
 }
 
-.table-loading {
+.grid-footer {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.65rem;
-  min-height: 5rem;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.1rem;
   color: var(--muted-ink);
+  background: var(--surface);
 }
 
-.table-loading .spinner-border {
+.grid-result-count {
+  font-size: 0.9rem;
+}
+
+.grid-pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.pagination-button {
+  display: inline-grid;
+  min-width: 2rem;
+  min-height: 2rem;
+  place-items: center;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 0.35rem;
+  color: var(--muted-ink);
+  background: transparent;
+  font-size: 0.9rem;
+}
+
+.pagination-button:hover:not(:disabled),
+.pagination-button:focus-visible {
+  border-color: var(--line);
   color: var(--accent-deep);
+  background: #eaf7f7;
 }
 
-.table-alert {
-  border: 0;
-  border-radius: 0;
+.pagination-button--active {
+  border-color: var(--accent);
+  color: white;
+  background: var(--accent);
+}
+
+.pagination-button--arrow {
+  border-color: var(--line);
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.pagination-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .app-footer {
@@ -358,13 +496,21 @@
     height: 1.55rem;
   }
 
-  .records-table thead th,
-  .records-table tbody td {
+  .records-grid__cell {
     padding: 0.75rem 0.65rem;
   }
 
-  .records-table thead th {
+  .records-grid__cell--header {
+    padding: 0.7rem 0.65rem 0.8rem;
+  }
+
+  .sort-button {
     letter-spacing: 0.04em;
+  }
+
+  .grid-footer {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .status-badge {
